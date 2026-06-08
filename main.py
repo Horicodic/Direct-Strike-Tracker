@@ -1,12 +1,19 @@
 import sys
 import os
 import ctypes
+import keyboard
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QObject, Signal
 
 from ui import DraftTrackerUI
+from command_popup import CommandPopup
+from command_parser import parse_command
+
+
+class HotkeyBridge(QObject):
+    show_popup = Signal()
 
 
 def resource_path(relative_path):
@@ -40,6 +47,37 @@ if __name__ == "__main__":
         Qt.WindowCloseButtonHint
     )
 
+    popup = CommandPopup()
+    popup.setWindowIcon(icon)
+
+    bridge = HotkeyBridge()
+    bridge.show_popup.connect(popup.show_popup)
+
+    def handle_command(command):
+        result = parse_command(command)
+
+        print("Command:", command)
+        print("Parsed:", result)
+
+        if not result:
+            return
+
+        enemy_index = result["enemy"] - 1
+        unit_name = result["unit"]
+
+        window.enemy_panels[enemy_index].select_unit_by_name(unit_name)
+
+    popup.command_submitted.connect(handle_command)
+
+    keyboard.add_hotkey(
+        "alt+d",
+        bridge.show_popup.emit
+    )
+
     window.show()
 
-    sys.exit(app.exec())
+    exit_code = app.exec()
+
+    keyboard.unhook_all_hotkeys()
+
+    sys.exit(exit_code)

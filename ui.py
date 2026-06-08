@@ -306,6 +306,19 @@ class EnemyPanel(QGroupBox):
         for w in self.category_content.values():
             w.setVisible(True)
 
+    #Parser for selecting units by name (used by command popup)
+    def select_unit_by_name(self, unit_name):
+        target = unit_name.lower()
+
+        for hotkey, buttons in self.group_buttons.items():
+            for btn in buttons:
+                if btn.unit_name.lower() == target:
+                    if not btn.isChecked():
+                        btn.click()
+                    return True
+
+        print(f"[WARN] Unit not found: {unit_name}")
+        return False
     # -------------------------
     # COLORS
     # -------------------------
