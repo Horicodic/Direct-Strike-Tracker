@@ -1,10 +1,12 @@
 import os
+import sys
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QGroupBox, QLabel,
-    QScrollArea, QSizePolicy,
-    QPushButton, QGridLayout
+    QScrollArea,
+    QPushButton, QGridLayout,
+    QApplication
 )
 
 from PySide6.QtGui import QIcon, QPixmap
@@ -14,16 +16,19 @@ from units import UNITS_BY_HOTKEY
 
 
 # -------------------------
-# path helper
+# PATH HELPER (EXE SAFE)
 # -------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 def asset_path(path):
-    return os.path.join(BASE_DIR, path)
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+
+    return os.path.join(base, path)
 
 
 # -------------------------
-# clickable top draft icon
+# TOP DRAFT ICON (CLICK TO REMOVE)
 # -------------------------
 class DraftIcon(QLabel):
     def __init__(self, hotkey, unit_name, icon_path, on_remove_callback):
@@ -44,7 +49,7 @@ class DraftIcon(QLabel):
 
 
 # -------------------------
-# unit button
+# UNIT BUTTON
 # -------------------------
 class UnitPortrait(QPushButton):
     def __init__(self, name, icon_path):
@@ -86,7 +91,7 @@ class UnitPortrait(QPushButton):
 
 
 # -------------------------
-# enemy panel
+# ENEMY PANEL
 # -------------------------
 class EnemyPanel(QGroupBox):
     def __init__(self, name):
@@ -114,7 +119,7 @@ class EnemyPanel(QGroupBox):
         layout.addLayout(controls)
 
         # -------------------------
-        # top draft bar
+        # TOP DRAFT BAR
         # -------------------------
         self.draft_grid = QGridLayout()
         self.slot_map = {}
@@ -127,30 +132,27 @@ class EnemyPanel(QGroupBox):
         layout.addWidget(draft_container)
 
         # -------------------------
-        # state
+        # STATE
         # -------------------------
         self.group_buttons = {}
         self.category_content = {}
-        self.category_headers = {}
 
         self.hotkey_position = {
             "Q": (0, 0),
             "W": (0, 1),
             "E": (0, 2),
             "R": (0, 3),
-
             "A": (1, 0),
             "S": (1, 1),
             "D": (1, 2),
             "F": (1, 3),
-
             "Z": (2, 0),
             "X": (2, 1),
             "C": (2, 2),
         }
 
         # -------------------------
-        # categories
+        # CATEGORIES
         # -------------------------
         for hotkey, units in UNITS_BY_HOTKEY.items():
 
@@ -166,8 +168,8 @@ class EnemyPanel(QGroupBox):
                     font-weight: bold;
                     color: white;
                     background-color: {self.get_hotkey_color(hotkey)};
-                    border: 2px solid #333;
                     border-radius: 6px;
+                    border: 2px solid #222;
                 }}
                 QLabel:hover {{
                     border: 2px solid white;
@@ -181,7 +183,6 @@ class EnemyPanel(QGroupBox):
 
             self.group_buttons[hotkey] = []
             self.category_content[hotkey] = content
-            self.category_headers[hotkey] = header
 
             for i, (unit_name, icon_path) in enumerate(units):
 
@@ -209,19 +210,19 @@ class EnemyPanel(QGroupBox):
         hotkey = btn.hotkey
         unit = btn.unit_name
 
-        row, col = self.hotkey_position.get(hotkey, (0, 0))
-
         # toggle off
         if self.group_selected.get(hotkey) == unit:
             self.remove_from_draft(hotkey, unit)
             return
 
-        # unselect others in same category
+        # unselect others in category
         for other in self.group_buttons[hotkey]:
             if other != btn:
                 other.setChecked(False)
 
         self.group_selected[hotkey] = unit
+
+        row, col = self.hotkey_position.get(hotkey, (0, 0))
 
         # replace slot
         if hotkey in self.slot_map:
@@ -229,7 +230,6 @@ class EnemyPanel(QGroupBox):
             self.draft_grid.removeWidget(old)
             old.deleteLater()
 
-        # add clickable top icon
         icon = DraftIcon(
             hotkey,
             unit,
@@ -243,7 +243,7 @@ class EnemyPanel(QGroupBox):
         self.collapse_category(hotkey)
 
     # -------------------------
-    # REMOVE FROM TOP BAR
+    # REMOVE FROM TOP
     # -------------------------
     def remove_from_draft(self, hotkey, unit_name):
 
@@ -255,7 +255,6 @@ class EnemyPanel(QGroupBox):
 
         self.group_selected[hotkey] = None
 
-        # uncheck button
         for btn in self.group_buttons[hotkey]:
             if btn.unit_name == unit_name:
                 btn.setChecked(False)
@@ -264,22 +263,22 @@ class EnemyPanel(QGroupBox):
         self.expand_category(hotkey)
 
     # -------------------------
-    # CATEGORY CONTROL
+    # CATEGORY TOGGLES
     # -------------------------
     def toggle_category(self, hotkey):
-        widget = self.category_content.get(hotkey)
-        if widget:
-            widget.setVisible(not widget.isVisible())
+        w = self.category_content.get(hotkey)
+        if w:
+            w.setVisible(not w.isVisible())
 
     def collapse_category(self, hotkey):
-        widget = self.category_content.get(hotkey)
-        if widget:
-            widget.setVisible(False)
+        w = self.category_content.get(hotkey)
+        if w:
+            w.setVisible(False)
 
     def expand_category(self, hotkey):
-        widget = self.category_content.get(hotkey)
-        if widget:
-            widget.setVisible(True)
+        w = self.category_content.get(hotkey)
+        if w:
+            w.setVisible(True)
 
     def collapse_all_categories(self):
         for w in self.category_content.values():
@@ -293,7 +292,6 @@ class EnemyPanel(QGroupBox):
     # RESET
     # -------------------------
     def reset(self):
-        # clear top bar
         for w in self.slot_map.values():
             self.draft_grid.removeWidget(w)
             w.deleteLater()
@@ -301,12 +299,10 @@ class EnemyPanel(QGroupBox):
         self.slot_map.clear()
         self.group_selected.clear()
 
-        # uncheck all buttons
         for group in self.group_buttons.values():
             for btn in group:
                 btn.setChecked(False)
 
-        # expand everything
         for w in self.category_content.values():
             w.setVisible(True)
 
@@ -327,26 +323,25 @@ class EnemyPanel(QGroupBox):
             "X": "#F94144",
             "C": "#43AA8B",
         }
-        return colors.get(hotkey, "#444444")
+        return colors.get(hotkey, "#444")
 
 
 # -------------------------
-# MAIN UI
+# MAIN WINDOW
 # -------------------------
 class DraftTrackerUI(QWidget):
     def __init__(self):
+        from PySide6.QtGui import QIcon
         super().__init__()
 
         self.setWindowTitle("Direct Strike Draft Tracker")
-
-        # your required default size
+        self.setWindowIcon(QIcon("icons/logo.ico"))
+        # IMPORTANT: fixes taskbar + proper window behavior
+        self.setWindowFlags(Qt.Window)
         self.setMinimumSize(1100, 800)
 
         main = QVBoxLayout()
 
-        # -------------------------
-        # RESET BUTTON
-        # -------------------------
         reset_btn = QPushButton("RESET GAME")
         reset_btn.setFixedHeight(32)
         reset_btn.setStyleSheet("""
@@ -360,18 +355,13 @@ class DraftTrackerUI(QWidget):
                 background-color: #cc4444;
             }
         """)
+
         main.addWidget(reset_btn)
 
-        # -------------------------
-        # title
-        # -------------------------
         title = QLabel("Enemy Draft Tracker")
         title.setStyleSheet("font-weight: bold; font-size: 14px;")
         main.addWidget(title)
 
-        # -------------------------
-        # enemy panels
-        # -------------------------
         row = QWidget()
         row_layout = QHBoxLayout(row)
 
@@ -395,5 +385,9 @@ class DraftTrackerUI(QWidget):
         reset_btn.clicked.connect(self.reset_all)
 
     def reset_all(self):
-        for panel in self.enemy_panels:
-            panel.reset()
+        for p in self.enemy_panels:
+            p.reset()
+
+    def closeEvent(self, event):
+        QApplication.instance().quit()
+        event.accept()
