@@ -334,7 +334,7 @@ class DraftTrackerUI(QWidget):
         from PySide6.QtGui import QIcon
         super().__init__()
 
-        self.setWindowTitle("Direct Strike Draft Tracker")
+        self.setWindowTitle("Direkt Strike Tracker")
         self.setWindowIcon(QIcon("icons/logo.ico"))
         # IMPORTANT: fixes taskbar + proper window behavior
         self.setWindowFlags(Qt.Window)
@@ -358,7 +358,7 @@ class DraftTrackerUI(QWidget):
 
         main.addWidget(reset_btn)
 
-        title = QLabel("Enemy Draft Tracker")
+        title = QLabel("Made by Horiciculic and Nemo")
         title.setStyleSheet("font-weight: bold; font-size: 14px;")
         main.addWidget(title)
 
@@ -366,9 +366,9 @@ class DraftTrackerUI(QWidget):
         row_layout = QHBoxLayout(row)
 
         self.enemy_panels = [
-            EnemyPanel("Enemy 1"),
-            EnemyPanel("Enemy 2"),
-            EnemyPanel("Enemy 3"),
+            EnemyPanel("TOP ENEMY"),
+            EnemyPanel("MIDDLE ENEMY"),
+            EnemyPanel("BOTTOM ENEMY"),
         ]
 
         for p in self.enemy_panels:
