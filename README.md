@@ -1,5 +1,7 @@
 # Direct-Strike-Tracker
 A tracker for the WC3 custom game Direct Strike - Made by Horiciculic and Nemo
+Built from source with PyInstaller.
+Source code available for review.
 
 # How to use
     1. Run .exe
