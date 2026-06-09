@@ -70,7 +70,7 @@ if __name__ == "__main__":
     popup.command_submitted.connect(handle_command)
 
     keyboard.add_hotkey(
-        "alt+d",
+        "Right Shift",
         bridge.show_popup.emit
     )
 

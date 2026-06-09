@@ -1,5 +1,6 @@
 import os
 import sys
+from unittest import result
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
@@ -11,6 +12,8 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import QSize, Qt
+from torch import layout
+from damage_analysis import analyze_armor_profile, analyze_attack_profile
 
 from units import UNITS_BY_HOTKEY
 
@@ -46,6 +49,86 @@ class DraftIcon(QLabel):
 
     def mousePressEvent(self, event):
         self.on_remove_callback(self.hotkey, self.unit_name)
+
+
+#
+# Segmented Bar for Armor and Attack distribution
+#
+
+class SegmentedBar(QWidget):
+
+    ARMOR_LABELS = {
+        "Heavy": "H",
+        "Medium": "M",
+        "Light": "L",
+        "Unarmored": "U",
+        "Fortified": "F",
+    }
+
+    ATTACK_LABELS = {
+        "Normal": "N",
+        "Pierce": "P",
+        "Magic": "MG",
+        "Siege": "S",
+    }
+
+    COLORS = {
+        # Armor
+        "Heavy": "#8B4513",
+        "Medium": "#3A7BD5",
+        "Light": "#43AA8B",
+        "Unarmored": "#A855F7",
+        "Fortified": "#555555",
+
+        # Attack
+        "Normal": "#D97706",
+        "Pierce": "#2563EB",
+        "Magic": "#9333EA",
+        "Siege": "#DC2626",
+    }
+
+    def __init__(self, type_counts, mode):
+        super().__init__()
+
+        labels = (
+            self.ARMOR_LABELS
+            if mode == "armor"
+            else self.ATTACK_LABELS
+        )
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(1)
+
+        total = sum(type_counts.values())
+
+        if total == 0:
+            self.setLayout(layout)
+            return
+
+        for type_name, count in type_counts.items():
+
+            percent = round((count / total) * 100)
+
+            segment = QLabel(
+                f"{labels.get(type_name, type_name)} {percent}%"
+            )
+
+            segment.setAlignment(Qt.AlignCenter)
+
+            segment.setStyleSheet(f"""
+                QLabel {{
+                    background-color: {self.COLORS.get(type_name, "#444444")};
+                    color: white;
+                    font-weight: bold;
+                    padding: 4px;
+                    border-radius: 3px;
+                }}
+            """)
+
+            layout.addWidget(segment, count)
+
+        self.setLayout(layout)
 
 
 # -------------------------
@@ -94,6 +177,71 @@ class UnitPortrait(QPushButton):
 # ENEMY PANEL
 # -------------------------
 class EnemyPanel(QGroupBox):
+
+
+    # Updating info for player based ona armor and attacktypes of selected units
+    def update_analysis(self):
+        armor = analyze_armor_profile(self.group_selected)
+        attack = analyze_attack_profile(self.group_selected)
+
+        self.clear_layout(self.armor_bars_layout)
+        self.clear_layout(self.attack_bars_layout)
+
+        # -------------------------
+        # Armor profile
+        # -------------------------
+        if armor["status"] == "unknown":
+            self.armor_bars_layout.addWidget(
+                QLabel("Armor: unknown")
+            )
+        else:
+            self.armor_bars_layout.addWidget(
+                SegmentedBar(
+                    armor["armor_counts"],
+                    "armor"
+                )
+            )
+
+            damage = ", ".join(
+                armor["recommended_damage"]
+            )
+
+            self.armor_bars_layout.addWidget(
+                QLabel(f"Build: {damage} Damage")
+            )
+
+        # -------------------------
+        # Attack profile
+        # -------------------------
+        if attack["status"] == "unknown":
+            self.attack_bars_layout.addWidget(
+                QLabel("Attack: unknown")
+            )
+        else:
+            self.attack_bars_layout.addWidget(
+                SegmentedBar(
+                    attack["attack_counts"],
+                    "attack"
+                )
+            )
+
+            armor_rec = ", ".join(
+                attack["recommended_armor"]
+            )
+
+            self.attack_bars_layout.addWidget(
+                QLabel(f"Build: {armor_rec}")
+            )
+    
+
+    def clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+
+            if widget:
+                widget.deleteLater()
+
     def __init__(self, name):
         super().__init__(name)
 
@@ -130,6 +278,22 @@ class EnemyPanel(QGroupBox):
         draft_container.setFixedHeight(180)
 
         layout.addWidget(draft_container)
+
+        #
+        # Analaysis bars
+        #
+
+        self.armor_bars_layout = QVBoxLayout()
+        self.attack_bars_layout = QVBoxLayout()
+
+        armor_box = QGroupBox("Armor Profile")
+        armor_box.setLayout(self.armor_bars_layout)
+
+        attack_box = QGroupBox("Attack Profile")
+        attack_box.setLayout(self.attack_bars_layout)
+
+        layout.addWidget(armor_box)
+        layout.addWidget(attack_box)
 
         # -------------------------
         # STATE
@@ -241,6 +405,7 @@ class EnemyPanel(QGroupBox):
         self.slot_map[hotkey] = icon
 
         self.collapse_category(hotkey)
+        self.update_analysis()
 
     # -------------------------
     # REMOVE FROM TOP
@@ -261,6 +426,7 @@ class EnemyPanel(QGroupBox):
                 break
 
         self.expand_category(hotkey)
+        self.update_analysis()
 
     # -------------------------
     # CATEGORY TOGGLES
@@ -305,6 +471,7 @@ class EnemyPanel(QGroupBox):
 
         for w in self.category_content.values():
             w.setVisible(True)
+        self.update_analysis()
 
     #Parser for selecting units by name (used by command popup)
     def select_unit_by_name(self, unit_name):
@@ -347,7 +514,7 @@ class DraftTrackerUI(QWidget):
         from PySide6.QtGui import QIcon
         super().__init__()
 
-        self.setWindowTitle("Direkt Strike Tracker")
+        self.setWindowTitle("Direct Strike Tracker")
         self.setWindowIcon(QIcon("icons/logo.ico"))
         # IMPORTANT: fixes taskbar + proper window behavior
         self.setWindowFlags(Qt.Window)

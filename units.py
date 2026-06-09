@@ -76,3 +76,4 @@ UNITS_BY_HOTKEY = {
         ("Frost Wyrm", "UnitPortraits/BTNFrostWyrm.png"),
     ]
 }
+

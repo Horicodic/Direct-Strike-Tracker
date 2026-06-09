@@ -77,7 +77,7 @@ UNIT_ALIASES = {
     "abom": "Abomination",
     "abomination": "Abomination",
 
-    "siege": "Siege Engine",
+    "tank": "Siege Engine",
     "siegeengine": "Siege Engine",
     "engine": "Siege Engine",
     "hippogryphriders": "Hippogryph Riders",
